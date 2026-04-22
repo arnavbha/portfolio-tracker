@@ -1,65 +1,159 @@
-import Image from "next/image";
+"use client";
+
+import { useMemo, useState } from "react";
+import { Header } from "@/components/layout/Header";
+import { ActualPortfolio } from "@/components/actual/ActualPortfolio";
+import { SoftPortfolio } from "@/components/soft/SoftPortfolio";
+import { Shortlist } from "@/components/shortlist/Shortlist";
+import { PortfolioCharts } from "@/components/charts/PortfolioCharts";
+import { usePortfolioStore } from "@/hooks/usePortfolioStore";
+import { useStockPrices } from "@/hooks/useStockPrices";
+import { useApiKey } from "@/hooks/useApiKey";
+
+type Tab = "portfolio" | "soft" | "shortlist" | "charts";
+
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: "portfolio", label: "Portfolio", icon: "📈" },
+  { id: "soft", label: "Soft Portfolio", icon: "🧪" },
+  { id: "shortlist", label: "Shortlist", icon: "👀" },
+  { id: "charts", label: "Charts", icon: "📊" },
+];
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<Tab>("portfolio");
+  const { apiKey, setApiKey } = useApiKey();
+
+  const {
+    loaded,
+    actualHoldings,
+    softHoldings,
+    watchlist,
+    addActualHolding,
+    removeActualHolding,
+    addSoftHolding,
+    removeSoftHolding,
+    addToWatchlist,
+    removeFromWatchlist,
+  } = usePortfolioStore();
+
+  const allSymbols = useMemo(() => {
+    const s = new Set<string>();
+    actualHoldings.forEach((h) => s.add(h.symbol));
+    softHoldings.forEach((h) => s.add(h.symbol));
+    watchlist.forEach((w) => s.add(w.symbol));
+    return Array.from(s);
+  }, [actualHoldings, softHoldings, watchlist]);
+
+  const { data: quotes = {}, isFetching, dataUpdatedAt } = useStockPrices(allSymbols, apiKey);
+
+  if (!loaded) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
+    <div className="min-h-screen flex flex-col">
+      <Header
+        apiKey={apiKey}
+        onApiKeyChange={setApiKey}
+        lastUpdated={dataUpdatedAt || null}
+        isLoading={isFetching}
+      />
+
+      {!apiKey && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-3">
+          <p className="text-sm text-amber-400 text-center max-w-7xl mx-auto">
+            Set your free{" "}
             <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              href="https://finnhub.io/register"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-amber-300"
             >
-              Templates
+              Finnhub API key
             </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+            to enable real-time prices. Click <strong>&quot;⚠ Set API Key&quot;</strong> in the top right.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      )}
+
+      <div className="max-w-7xl mx-auto w-full flex-1 px-6 py-6">
+        {/* Tab nav */}
+        <div className="flex gap-1 mb-6 bg-zinc-900 rounded-xl p-1 w-fit">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                activeTab === tab.id
+                  ? "bg-zinc-700 text-white shadow-sm"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              <span>{tab.icon}</span>
+              {tab.label}
+              {tab.id === "portfolio" && actualHoldings.length > 0 && (
+                <span className="bg-zinc-600 text-zinc-300 text-xs px-1.5 py-0.5 rounded-full">
+                  {actualHoldings.length}
+                </span>
+              )}
+              {tab.id === "soft" && softHoldings.length > 0 && (
+                <span className="bg-zinc-600 text-zinc-300 text-xs px-1.5 py-0.5 rounded-full">
+                  {softHoldings.length}
+                </span>
+              )}
+              {tab.id === "shortlist" && watchlist.length > 0 && (
+                <span className="bg-zinc-600 text-zinc-300 text-xs px-1.5 py-0.5 rounded-full">
+                  {watchlist.length}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
-      </main>
+
+        {/* Section content */}
+        <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6">
+          {activeTab === "portfolio" && (
+            <ActualPortfolio
+              holdings={actualHoldings}
+              quotes={quotes}
+              apiKey={apiKey}
+              onAdd={addActualHolding}
+              onRemove={removeActualHolding}
+            />
+          )}
+          {activeTab === "soft" && (
+            <SoftPortfolio
+              holdings={softHoldings}
+              quotes={quotes}
+              apiKey={apiKey}
+              onAdd={addSoftHolding}
+              onRemove={removeSoftHolding}
+            />
+          )}
+          {activeTab === "shortlist" && (
+            <Shortlist
+              items={watchlist}
+              quotes={quotes}
+              loading={isFetching}
+              apiKey={apiKey}
+              onAdd={addToWatchlist}
+              onRemove={removeFromWatchlist}
+            />
+          )}
+          {activeTab === "charts" && (
+            <PortfolioCharts
+              actualHoldings={actualHoldings}
+              softHoldings={softHoldings}
+              watchlist={watchlist}
+              quotes={quotes}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
