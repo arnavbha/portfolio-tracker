@@ -6,7 +6,14 @@
       "Read(//usr/local/bin/**)",
       "Read(//Users/abhatia/**)",
       "Read(//opt/homebrew/bin/**)",
-      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")"
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Skill(plan-ceo-review)",
+      "Skill(plan-ceo-review:*)",
+      "Skill(plan-eng-review)",
+      "Skill(plan-eng-review:*)",
+      "Bash(~/.claude/skills/gstack/bin/gstack-review-log --help)",
+      "Skill(plan-design-review)",
+      "Skill(plan-design-review:*)"
     ]
   }
 }
