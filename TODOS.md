@@ -1,6 +1,18 @@
 # TODOS
 
-Deferred work from the research-section planning cycle (office-hours + plan-ceo-review, 2026-04-23). Sorted by when they'd be revisited.
+Deferred work from the research-section planning cycle (office-hours + plan-ceo-review + plan-eng-review + plan-design-review + plan-devex-review, 2026-04-23 to 2026-04-24). Sorted by when they'd be revisited.
+
+## V1 must-do (from devex review, 2026-04-24)
+
+These were promoted INTO V1 by /plan-devex-review — they are not deferred work, they are required impl steps. Listed here as a pre-impl checklist so they don't get skipped under velocity pressure.
+
+- [ ] **DX1** — Update `.env.local.example` to list all 6 research-section secrets with comments explaining which side (Vercel / GHA / both) each goes to. ~10 min. **Highest-leverage Hour-1 win.**
+- [ ] **DX2** — Add `package.json` scripts: `test:research`, `test:research:watch`, `scan`, `scan:dry`, `framework:bump`, `feed:check`. Add `tsx` + `vitest` + `@vitest/ui` to devDependencies. ~5 min.
+- [ ] **DX3** — Ship `scripts/bump-framework.ts` (~40 min) OR fall back to `docs/FRAMEWORK-BUMPS.md` if heavy mid-impl. Script is preferred — doc-only forces hand-constructed SQL which produces E3-class snapshot drift bugs.
+- [ ] **DX4** — `/research/admin/today` flip-evaluation dashboard. One screen with all 3 shakedown criteria + LLM call counter + recent validator failures + manual re-trigger buttons. ~60 min. Amends design-doc Step 5.20.
+- [ ] **DX6** — `docs/RESEARCH-SETUP.md` — one-page Hour-1-to-end-of-Day-1 runbook, extracted from CEO plan Step 0E. ~20 min.
+
+## V1.1 carve-outs (revisit ~2 weeks after public flip)
 
 ## V1.1 carve-outs (revisit ~2 weeks after public flip)
 
