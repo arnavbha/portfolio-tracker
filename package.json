@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:research": "vitest run test/research",
+    "test:research:watch": "vitest test/research",
+    "scan": "tsx scripts/scan.ts",
+    "scan:dry": "tsx scripts/scan.ts --dry-run --tickers=AAPL,MSFT,GOOGL,JPM,XOM",
+    "framework:bump": "tsx scripts/bump-framework.ts",
+    "feed:check": "curl -fsS http://localhost:3000/research/feed.xml | xmllint --noout - && echo 'feed valid'"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.99.0",
@@ -22,9 +28,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/ui": "^2.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.19.0",
+    "typescript": "^5",
+    "vitest": "^2.1.0"
   }
 }
