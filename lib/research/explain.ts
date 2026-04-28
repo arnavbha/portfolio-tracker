@@ -1,4 +1,5 @@
 import type { ProseSource } from "./types";
+import { GEMINI_MODEL_ID, getGeminiClient } from "./gemini";
 
 /**
  * Citation validator for LLM-generated thesis prose.
@@ -124,3 +125,47 @@ export interface ExplainResponse {
 }
 
 export type ExplainProvider = (req: ExplainRequest) => Promise<ExplainResponse>;
+
+/**
+ * Default system preamble for Gemini-backed thesis prose. Encodes the only
+ * hard rule the validator enforces — every sentence must end with a known
+ * `[src:N]` token. Adjusting wording is fine; never weaken the citation rule.
+ */
+export const GEMINI_PROSE_SYSTEM_PREAMBLE = [
+  "You write short investment thesis explanations. Two paragraphs maximum, six sentences total.",
+  "Every sentence MUST end with at least one citation token of the form [src:N], where N is the integer id of a provided source.",
+  "Do not invent sources. Do not cite an N that was not provided. The citation goes after the period (or before it, immediately preceding the period).",
+  "Plain prose only — no markdown, no headers, no lists.",
+].join(" ");
+
+/**
+ * Gemini-backed `ExplainProvider`. No retry, no rate-limit accounting —
+ * orchestrator owns both. Throws on any upstream error so the caller can
+ * record a `validator_failures` row.
+ */
+export const geminiExplainProvider: ExplainProvider = async (req) => {
+  const client = getGeminiClient();
+  if (!client) {
+    throw new Error(
+      "geminiExplainProvider invoked without GEMINI_API_KEY — fall back to a stub provider in callers that allow it.",
+    );
+  }
+  const sourcesBlock = req.sources
+    .map((s) => `[src:${s.n}] ${s.label} (${s.sourceType}) ${s.url}`)
+    .join("\n");
+  const fullPrompt = `${req.prompt}\n\nSources available for citation:\n${sourcesBlock}`;
+  const response = await client.models.generateContent({
+    model: GEMINI_MODEL_ID,
+    contents: fullPrompt,
+    config: {
+      systemInstruction: `${GEMINI_PROSE_SYSTEM_PREAMBLE}\n\n${req.system}`,
+      temperature: 0.2,
+      maxOutputTokens: 1024,
+    },
+  });
+  const prose = (response.text ?? "").trim();
+  if (!prose) {
+    throw new Error("geminiExplainProvider returned empty prose");
+  }
+  return { prose, modelId: GEMINI_MODEL_ID };
+};

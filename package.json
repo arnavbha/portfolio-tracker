@@ -15,6 +15,7 @@
     "feed:check": "curl -fsS http://localhost:3000/research/feed.xml | xmllint --noout - && echo 'feed valid'"
   },
   "dependencies": {
+    "@google/genai": "^1.50.1",
     "@tanstack/react-query": "^5.99.0",
     "date-fns": "^4.1.0",
     "motion": "^12.38.0",

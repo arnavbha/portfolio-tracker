@@ -14,7 +14,8 @@
  *   2 — bad args
  */
 
-import { runScan, stubFactorGrader } from "../lib/research/scan";
+import { runScan } from "../lib/research/scan";
+import { pickFactorGrader } from "../lib/research/grader";
 
 interface Args {
   tickers?: string[];
@@ -73,10 +74,14 @@ function printUsage(): void {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv);
 
+  const grader = pickFactorGrader();
+  const graderName = process.env.GEMINI_API_KEY ? "gemini-2.5-flash" : "stub-3.5";
+
   console.log(
     [
       `[scan] date=${args.scanDate} ${args.dryRun ? "DRY-RUN " : ""}` +
-        (args.tickers ? `tickers=${args.tickers.join(",")}` : "universe=SP100"),
+        (args.tickers ? `tickers=${args.tickers.join(",")}` : "universe=SP100") +
+        ` grader=${graderName}`,
     ].join(""),
   );
 
@@ -85,7 +90,7 @@ async function main(): Promise<void> {
     tickers: args.tickers,
     dryRun: args.dryRun,
     rateLimitMs: args.rateLimitMs,
-    factorGrader: stubFactorGrader,
+    factorGrader: grader,
   });
 
   console.log("─".repeat(60));
