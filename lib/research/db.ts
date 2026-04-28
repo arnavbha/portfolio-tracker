@@ -1,4 +1,4 @@
-import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
+import { Pool, types as pgTypes, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
 
 /**
  * Postgres pool for the research section. Singleton across hot reloads in dev
@@ -8,6 +8,20 @@ import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg
  * Edge runtime: not used here. The scan pipeline runs from GHA + the read
  * paths run from Node-runtime RSCs. Middleware never touches this module.
  */
+
+// Coerce DATE / TIMESTAMP / TIMESTAMPTZ to raw strings instead of Date objects.
+// Reasons:
+//   1. queries.ts types every date column as `string` and feeds them straight
+//      into JSX (`<dd>{snapshot.scanDate}</dd>`); React refuses to render Date
+//      objects so unparsed Dates produce a 500 with "Objects are not valid as
+//      a React child (found: [object Date])".
+//   2. Date roundtrips lose timezone fidelity for the DATE type — PG's DATE is
+//      a calendar date, not an instant — and node-postgres converts it to UTC
+//      midnight which we then re-format anyway.
+// OIDs: 1082 = DATE, 1114 = TIMESTAMP (no tz), 1184 = TIMESTAMPTZ.
+pgTypes.setTypeParser(1082, (v) => v); // DATE → "2026-04-28"
+pgTypes.setTypeParser(1114, (v) => v); // TIMESTAMP → "2026-04-28 04:00:00"
+pgTypes.setTypeParser(1184, (v) => v); // TIMESTAMPTZ → "2026-04-28 04:00:00+00"
 
 declare global {
   // eslint-disable-next-line no-var
