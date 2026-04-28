@@ -6,13 +6,11 @@ Deferred work from the research-section planning cycle (office-hours + plan-ceo-
 
 These were promoted INTO V1 by /plan-devex-review — they are not deferred work, they are required impl steps. Listed here as a pre-impl checklist so they don't get skipped under velocity pressure.
 
-- [ ] **DX1** — Update `.env.local.example` to list all 6 research-section secrets with comments explaining which side (Vercel / GHA / both) each goes to. ~10 min. **Highest-leverage Hour-1 win.**
-- [ ] **DX2** — Add `package.json` scripts: `test:research`, `test:research:watch`, `scan`, `scan:dry`, `framework:bump`, `feed:check`. Add `tsx` + `vitest` + `@vitest/ui` to devDependencies. ~5 min.
-- [ ] **DX3** — Ship `scripts/bump-framework.ts` (~40 min) OR fall back to `docs/FRAMEWORK-BUMPS.md` if heavy mid-impl. Script is preferred — doc-only forces hand-constructed SQL which produces E3-class snapshot drift bugs.
-- [ ] **DX4** — `/research/admin/today` flip-evaluation dashboard. One screen with all 3 shakedown criteria + LLM call counter + recent validator failures + manual re-trigger buttons. ~60 min. Amends design-doc Step 5.20.
-- [ ] **DX6** — `docs/RESEARCH-SETUP.md` — one-page Hour-1-to-end-of-Day-1 runbook, extracted from CEO plan Step 0E. ~20 min.
-
-## V1.1 carve-outs (revisit ~2 weeks after public flip)
+- [x] ~~**DX1** — `.env.local.example` lists all 6 research-section secrets with Vercel / GHA / both side annotations.~~ Shipped 0b27ef8.
+- [x] ~~**DX2** — `package.json` scripts (`test:research`, `scan`, `scan:dry`, `framework:bump`, `feed:check`) + `tsx`/`vitest`/`@vitest/ui` devDeps.~~ Shipped 0b27ef8.
+- [x] ~~**DX3** — `scripts/bump-framework.ts` ships the diff-and-INSERT flow against `framework_versions`.~~ Shipped 51fd43d.
+- [x] ~~**DX4** — `/research/admin/today` operator dashboard: snapshot tiles, threshold-simulation slider (server-side GET form), per-near-miss factor breakdown, validator-failure backlog count, recent-scans table.~~ Shipped df19b5b.
+- [x] ~~**DX6** — `docs/RESEARCH-SETUP.md` Hour-1 runbook.~~ Shipped 0b27ef8.
 
 ## V1.1 carve-outs (revisit ~2 weeks after public flip)
 
