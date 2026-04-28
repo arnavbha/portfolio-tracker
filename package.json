@@ -11,6 +11,7 @@
     "test:research:watch": "vitest test/research",
     "scan": "tsx scripts/scan.ts",
     "scan:dry": "tsx scripts/scan.ts --dry-run --tickers=AAPL,MSFT,GOOGL,JPM,XOM",
+    "db:migrate": "tsx scripts/migrate.ts",
     "framework:bump": "tsx scripts/bump-framework.ts",
     "feed:check": "curl -fsS http://localhost:3000/research/feed.xml | xmllint --noout - && echo 'feed valid'"
   },

@@ -30,6 +30,11 @@ export interface ScanInput {
   factorGrader?: FactorGrader;
   /** ms between Finnhub calls; free tier is 60/min so 1100ms is safe. */
   rateLimitMs?: number;
+  /** ms between FactorGrader calls. Gemini free tier is 10 RPM on
+   *  gemini-2.5-flash, so 6500ms is a safe floor (~9.2/min). Set 0 when
+   *  the grader is the local stub to avoid an unnecessary 11-minute pause
+   *  on a 100-ticker dry-run. */
+  graderPaceMs?: number;
 }
 
 export interface ScanOutput {
@@ -81,6 +86,10 @@ export async function runScan(input: ScanInput): Promise<ScanOutput> {
   const tickers = input.tickers ?? SP100_UNIVERSE;
   const grader = input.factorGrader ?? stubFactorGrader;
   const rateMs = input.rateLimitMs ?? 1100;
+  // Stub grader is local + free; Gemini grader is paced to stay under 10 RPM
+  // on the free tier. Caller can override with graderPaceMs explicitly.
+  const graderPaceMs =
+    input.graderPaceMs ?? (grader === stubFactorGrader ? 0 : 6500);
 
   const now = Math.floor(Date.now() / 1000);
   const sixMonthsAgo = now - SIX_MONTHS_SEC;
@@ -156,11 +165,17 @@ export async function runScan(input: ScanInput): Promise<ScanOutput> {
   const scored: Array<{ ticker: string; result: ReturnType<typeof scoreTicker> }> = [];
   const allFactorScores: Record<string, { score: number; factors: Record<string, FactorScore> }> = {};
 
-  for (const sig of fetched) {
+  for (let i = 0; i < fetched.length; i++) {
+    const sig = fetched[i];
     const raw = await grader.grade(sig.ticker, sig);
     const result = scoreTicker(raw, FRAMEWORK_CONFIG);
     scored.push({ ticker: sig.ticker, result });
     allFactorScores[sig.ticker] = { score: result.composite, factors: result.factorScores };
+    // Pace before the next call (not the last one) so total wall time doesn't
+    // include a trailing sleep we don't need.
+    if (graderPaceMs > 0 && i < fetched.length - 1) {
+      await sleep(graderPaceMs);
+    }
   }
 
   const decision = decideUniverse(scored, FRAMEWORK_CONFIG);

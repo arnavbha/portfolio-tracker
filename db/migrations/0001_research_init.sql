@@ -75,14 +75,17 @@ CREATE INDEX thesis_annotations_pick_id_occurred_idx ON thesis_annotations (pick
 CREATE TABLE forward_returns (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   pick_id           UUID NOT NULL REFERENCES picks(id) ON DELETE RESTRICT,
-  window            TEXT NOT NULL CHECK (window IN ('1w','1m','3m','6m','1y')),
+  -- "window" is a reserved keyword in PG (used for window functions), so the
+  -- column has to be quoted in DDL. SELECT * still returns it as the
+  -- lowercase identifier `window`, which is what queries.ts expects.
+  "window"          TEXT NOT NULL CHECK ("window" IN ('1w','1m','3m','6m','1y')),
   pick_date_close   NUMERIC,
   current_close     NUMERIC,
   abs_return        NUMERIC,
   spy_return        NUMERIC,
   vs_spy_return     NUMERIC,
   computed_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (pick_id, window)
+  UNIQUE (pick_id, "window")
 );
 
 CREATE TABLE validator_failures (
