@@ -256,6 +256,15 @@ export async function listForwardReturnsForPick(
   }));
 }
 
+// validator failures ------------------------------------------------------
+
+export async function countValidatorFailures(): Promise<number> {
+  const r = await query<{ n: string }>(
+    "SELECT COUNT(*)::text AS n FROM validator_failures",
+  );
+  return Number(r.rows[0]?.n ?? "0");
+}
+
 // framework versions ------------------------------------------------------
 
 interface FrameworkVersionRaw {
