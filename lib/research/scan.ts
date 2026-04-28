@@ -87,20 +87,23 @@ export async function runScan(input: ScanInput): Promise<ScanOutput> {
 
   const fetched: MarketSignals[] = [];
   const droppedForHistory: string[] = [];
-  const fetchErrors: Array<{ ticker: string; reason: string }> = [];
+  // `stage` tells us which side of the pipeline rejected each ticker, so a
+  // failed scan's error message points at the actual culprit (quote vs candle)
+  // instead of a single opaque counter.
+  const fetchErrors: Array<{ ticker: string; stage: "quote" | "candle"; reason: string; detail?: string }> = [];
   const fetchCandles = pickCandleFetcher();
 
   for (const ticker of tickers) {
     const quote = await fetchQuoteServer(ticker);
     if (!quote.ok) {
-      fetchErrors.push({ ticker, reason: quote.reason });
+      fetchErrors.push({ ticker, stage: "quote", reason: quote.reason, detail: quote.detail });
       await sleep(rateMs);
       continue;
     }
     await sleep(rateMs);
     const candles = await fetchCandles(ticker, sixMonthsAgo, now);
     if (!candles.ok) {
-      fetchErrors.push({ ticker, reason: candles.reason });
+      fetchErrors.push({ ticker, stage: "candle", reason: candles.reason, detail: candles.detail });
       await sleep(rateMs);
       continue;
     }
@@ -120,9 +123,14 @@ export async function runScan(input: ScanInput): Promise<ScanOutput> {
   }
 
   if (fetched.length === 0) {
+    const sample = fetchErrors
+      .slice(0, 5)
+      .map((e) => `  ${e.ticker} [${e.stage}] ${e.reason}${e.detail ? ` — ${e.detail}` : ""}`)
+      .join("\n");
     throw new Error(
       `scan ${input.scanDate}: no tickers passed ingestion. ` +
-        `dropped-for-history=${droppedForHistory.length}, fetch-errors=${fetchErrors.length}.`,
+        `dropped-for-history=${droppedForHistory.length}, fetch-errors=${fetchErrors.length}.\n` +
+        `First failures:\n${sample}`,
     );
   }
 
