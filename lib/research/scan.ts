@@ -1,6 +1,7 @@
 import { FRAMEWORK_CONFIG, serializeSnapshot } from "./framework-config";
 import { decideUniverse, scoreTicker, type RawFactorInput } from "./score";
-import { fetchQuoteServer, fetchDailyCandles, sleep } from "./finnhub-server";
+import { fetchQuoteServer, sleep } from "./finnhub-server";
+import { pickCandleFetcher } from "./candles-yahoo";
 import { SP100_UNIVERSE } from "./universe";
 import type { FactorScore, NearMiss } from "./types";
 import { query, withTransaction } from "./db";
@@ -87,6 +88,7 @@ export async function runScan(input: ScanInput): Promise<ScanOutput> {
   const fetched: MarketSignals[] = [];
   const droppedForHistory: string[] = [];
   const fetchErrors: Array<{ ticker: string; reason: string }> = [];
+  const fetchCandles = pickCandleFetcher();
 
   for (const ticker of tickers) {
     const quote = await fetchQuoteServer(ticker);
@@ -96,7 +98,7 @@ export async function runScan(input: ScanInput): Promise<ScanOutput> {
       continue;
     }
     await sleep(rateMs);
-    const candles = await fetchDailyCandles(ticker, sixMonthsAgo, now);
+    const candles = await fetchCandles(ticker, sixMonthsAgo, now);
     if (!candles.ok) {
       fetchErrors.push({ ticker, reason: candles.reason });
       await sleep(rateMs);
