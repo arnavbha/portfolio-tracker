@@ -14,6 +14,13 @@
  *   2 — bad args
  */
 
+// Load .env.local before any module reads process.env. Next.js does this for
+// server runtime, but tsx CLI invocations need to do it explicitly.
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+const envFile = resolve(process.cwd(), ".env.local");
+if (existsSync(envFile)) process.loadEnvFile(envFile);
+
 import { runScan } from "../lib/research/scan";
 import { pickFactorGrader } from "../lib/research/grader";
 

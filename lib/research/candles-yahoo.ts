@@ -1,5 +1,6 @@
 import type { CandleData, FetchResult } from "./finnhub-server";
 import { fetchDailyCandles as fetchFinnhubDailyCandles } from "./finnhub-server";
+import { fetchTiingoDailyCandles } from "./candles-tiingo";
 
 /**
  * Daily-candle fetcher backed by Yahoo Finance's unofficial chart endpoint.
@@ -126,13 +127,24 @@ export type CandleFetcher = (
 ) => Promise<FetchResult<CandleData>>;
 
 /**
- * Picks the candle source based on env. Defaults to Yahoo because Finnhub
- * free tier no longer covers /stock/candle. Set `CANDLE_SOURCE=finnhub` to
- * route candles through the Finnhub server fetcher instead — only useful on
- * a paid Finnhub key.
+ * Picks the candle source based on env.
+ *
+ *   CANDLE_SOURCE=tiingo  → Tiingo (recommended; free tier with key)
+ *   CANDLE_SOURCE=finnhub → Finnhub /stock/candle (paid tier only)
+ *   CANDLE_SOURCE=yahoo   → Yahoo Finance unofficial chart endpoint
+ *   CANDLE_SOURCE=auto    → Tiingo if TIINGO_API_KEY set, else Yahoo
+ *   (unset)               → same as `auto`
+ *
+ * Yahoo started 429ing residential IPs in 2025 without a cookie+crumb dance,
+ * so `auto` prefers Tiingo when keyed and falls back to Yahoo for the
+ * keyless case where it still happens to work.
  */
 export function pickCandleFetcher(): CandleFetcher {
-  return process.env.CANDLE_SOURCE === "finnhub"
-    ? fetchFinnhubDailyCandles
-    : fetchYahooDailyCandles;
+  const explicit = (process.env.CANDLE_SOURCE ?? "auto").toLowerCase();
+  if (explicit === "finnhub") return fetchFinnhubDailyCandles;
+  if (explicit === "yahoo") return fetchYahooDailyCandles;
+  if (explicit === "tiingo") return fetchTiingoDailyCandles;
+  // auto: Tiingo if keyed, else Yahoo (which may 429 on some IPs).
+  if (process.env.TIINGO_API_KEY) return fetchTiingoDailyCandles;
+  return fetchYahooDailyCandles;
 }

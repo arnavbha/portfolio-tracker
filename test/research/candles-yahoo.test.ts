@@ -151,19 +151,46 @@ describe("fetchYahooDailyCandles transport errors", () => {
 });
 
 describe("pickCandleFetcher", () => {
-  const PRIOR = process.env.CANDLE_SOURCE;
+  const PRIOR_SRC = process.env.CANDLE_SOURCE;
+  const PRIOR_TIINGO = process.env.TIINGO_API_KEY;
   afterEach(() => {
-    if (PRIOR === undefined) delete process.env.CANDLE_SOURCE;
-    else process.env.CANDLE_SOURCE = PRIOR;
+    if (PRIOR_SRC === undefined) delete process.env.CANDLE_SOURCE;
+    else process.env.CANDLE_SOURCE = PRIOR_SRC;
+    if (PRIOR_TIINGO === undefined) delete process.env.TIINGO_API_KEY;
+    else process.env.TIINGO_API_KEY = PRIOR_TIINGO;
   });
 
-  it("returns the Yahoo fetcher by default", () => {
+  it("auto: returns Yahoo when no Tiingo key is set", () => {
     delete process.env.CANDLE_SOURCE;
+    delete process.env.TIINGO_API_KEY;
     expect(pickCandleFetcher()).toBe(fetchYahooDailyCandles);
+  });
+
+  it("auto: returns Tiingo when TIINGO_API_KEY is set", async () => {
+    delete process.env.CANDLE_SOURCE;
+    process.env.TIINGO_API_KEY = "test-tiingo-key";
+    const { fetchTiingoDailyCandles } = await import(
+      "@/lib/research/candles-tiingo"
+    );
+    expect(pickCandleFetcher()).toBe(fetchTiingoDailyCandles);
   });
 
   it("returns the Finnhub fetcher when CANDLE_SOURCE=finnhub", () => {
     process.env.CANDLE_SOURCE = "finnhub";
     expect(pickCandleFetcher()).toBe(fetchDailyCandles);
+  });
+
+  it("returns Yahoo explicitly when CANDLE_SOURCE=yahoo even with Tiingo key", () => {
+    process.env.CANDLE_SOURCE = "yahoo";
+    process.env.TIINGO_API_KEY = "test-tiingo-key";
+    expect(pickCandleFetcher()).toBe(fetchYahooDailyCandles);
+  });
+
+  it("returns Tiingo when CANDLE_SOURCE=tiingo", async () => {
+    process.env.CANDLE_SOURCE = "tiingo";
+    const { fetchTiingoDailyCandles } = await import(
+      "@/lib/research/candles-tiingo"
+    );
+    expect(pickCandleFetcher()).toBe(fetchTiingoDailyCandles);
   });
 });

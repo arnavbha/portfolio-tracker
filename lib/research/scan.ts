@@ -85,6 +85,14 @@ export async function runScan(input: ScanInput): Promise<ScanOutput> {
   const now = Math.floor(Date.now() / 1000);
   const sixMonthsAgo = now - SIX_MONTHS_SEC;
 
+  // `SKIP_HISTORY=1` runs the scan without daily candles. The `min-history`
+  // framework rule becomes a no-op and forward-return windows lose their
+  // pick-date close anchor. Use only when the candle source is wedged and
+  // running a degraded scan tonight beats not running one at all. The
+  // snapshot reasonText carries a `[SKIP_HISTORY]` tag so the persisted row
+  // is auditable.
+  const skipHistory = process.env.SKIP_HISTORY === "1";
+
   const fetched: MarketSignals[] = [];
   const droppedForHistory: string[] = [];
   // `stage` tells us which side of the pipeline rejected each ticker, so a
@@ -97,6 +105,17 @@ export async function runScan(input: ScanInput): Promise<ScanOutput> {
     const quote = await fetchQuoteServer(ticker);
     if (!quote.ok) {
       fetchErrors.push({ ticker, stage: "quote", reason: quote.reason, detail: quote.detail });
+      await sleep(rateMs);
+      continue;
+    }
+    if (skipHistory) {
+      fetched.push({
+        ticker,
+        current: quote.data.current,
+        previousClose: quote.data.previousClose,
+        dailyChangePct: quote.data.dailyChangePct,
+        closes: [],
+      });
       await sleep(rateMs);
       continue;
     }
@@ -146,10 +165,11 @@ export async function runScan(input: ScanInput): Promise<ScanOutput> {
 
   const decision = decideUniverse(scored, FRAMEWORK_CONFIG);
 
+  const tag = skipHistory ? "[SKIP_HISTORY] " : "";
   const reasonText =
     decision.pickedTicker === null
-      ? `No ticker passed viability ≥ ${FRAMEWORK_CONFIG.thresholds.viability}. Top: ${decision.topTicker} @ ${decision.topScore}. ${decision.nearMisses.length} near-miss(es).`
-      : `${decision.pickedTicker} passed viability at ${decision.topScore} on framework ${FRAMEWORK_CONFIG.version}.`;
+      ? `${tag}No ticker passed viability ≥ ${FRAMEWORK_CONFIG.thresholds.viability}. Top: ${decision.topTicker} @ ${decision.topScore}. ${decision.nearMisses.length} near-miss(es).`
+      : `${tag}${decision.pickedTicker} passed viability at ${decision.topScore} on framework ${FRAMEWORK_CONFIG.version}.`;
 
   if (input.dryRun) {
     return {

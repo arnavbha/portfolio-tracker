@@ -12,6 +12,13 @@
  * the version field inside the TS file. The reason flag becomes migration_notes.
  */
 
+// Load .env.local before any module reads process.env. Next.js does this for
+// server runtime, but tsx CLI invocations need to do it explicitly.
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+const envFile = resolve(process.cwd(), ".env.local");
+if (existsSync(envFile)) process.loadEnvFile(envFile);
+
 import { Client } from "pg";
 import { FRAMEWORK_CONFIG, serializeSnapshot, snapshotsEqual } from "../lib/research/framework-config";
 import type { FrameworkConfig } from "../lib/research/types";
