@@ -12,6 +12,38 @@ These were promoted INTO V1 by /plan-devex-review — they are not deferred work
 - [x] ~~**DX4** — `/research/admin/today` operator dashboard: snapshot tiles, threshold-simulation slider (server-side GET form), per-near-miss factor breakdown, validator-failure backlog count, recent-scans table.~~ Shipped df19b5b.
 - [x] ~~**DX6** — `docs/RESEARCH-SETUP.md` Hour-1 runbook.~~ Shipped 0b27ef8.
 
+## V1 unblockers discovered after first end-to-end run (2026-04-28)
+
+These came out of provisioning Neon + running the first persisted scans.
+The scan pipeline is functionally alive but won't reliably grade the full
+S&P 100 daily on free-tier credentials without these.
+
+- [ ] **Bulk Gemini grader.** Free tier of `gemini-2.5-flash` is **20 RPD**
+  (not the ~250 originally assumed). Current `geminiFactorGrader.grade()`
+  is one Gemini call per ticker → 105 SP100 tickers ≫ 20-call budget. Refactor
+  the grader to score N tickers per call (proposed: batches of 25, so 4-5
+  calls per scan). Token budget: ~14 factors × ~50 tokens × 25 tickers
+  ≈ 17.5k output tokens — within Gemini 2.5 Flash's 65k output cap. Add
+  per-ticker validation + partial-batch tolerance (one bad ticker shouldn't
+  poison a batch). Until shipped, the per-ticker resilience fix
+  (38ff954-ish) silently falls back to the stub for un-graded tickers.
+  Estimate: 2-3 hours including tests.
+- [ ] **Tiingo per-hour pacing or batching.** Free tier is 50 unique
+  symbols/hour, 500/day. SP100's 105 tickers exceeds the hourly cap.
+  Option A: spread the scan across 2+ hours (rateMs ≈ 36000ms → ~2hr wall
+  time). Option B: cache fundamentals across days so we only fetch fresh
+  closes for tickers we last hit >24h ago. Option C: paid Tiingo upgrade.
+  Currently the orchestrator hits the cap mid-run and the affected tickers
+  return `rate_limited`, which the resilience fix dodges by skipping them
+  entirely (under-coverage but no scan-killer). Estimate: 1 hour for
+  option A pacing, 4-6 hours for option B caching layer.
+- [ ] **`graderFallbacks` should land in a DB column.** Right now the count
+  surfaces in `scan_snapshots.reason_text` as a `[STUB_FALLBACK N/M]` tag,
+  but per-ticker fallback details only live in CLI stdout. Add a column
+  (probably `grader_failures jsonb`) so /research/admin/today can render
+  the failure list and operator can see which tickers were stubbed.
+  Estimate: 30 min including a migration.
+
 ## V1.1 carve-outs (revisit ~2 weeks after public flip)
 
 - [ ] Universe expansion S&P 100 → S&P 500. Requires Finnhub pacing retest: at 400 fundamentals calls/min and 60 calls/min free-tier cap, S&P 500 wall-clock is ~35 min per scan. Either upgrade Finnhub tier, or shard scans across multiple days, or cache fundamentals >24h.

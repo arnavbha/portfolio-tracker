@@ -49,6 +49,8 @@ export interface ScanOutput {
   viabilityPassed: boolean;
   nearMisses: NearMiss[];
   reasonText: string;
+  /** Tickers where the primary grader threw and the stub was used instead. */
+  graderFallbacks: Array<{ ticker: string; error: string }>;
   scanSnapshotId: string | null; // null in dry-run
   pickId: string | null;
 }
@@ -165,9 +167,23 @@ export async function runScan(input: ScanInput): Promise<ScanOutput> {
   const scored: Array<{ ticker: string; result: ReturnType<typeof scoreTicker> }> = [];
   const allFactorScores: Record<string, { score: number; factors: Record<string, FactorScore> }> = {};
 
+  // Per-ticker resilience: if the primary grader throws (Gemini quota,
+  // transport, schema-validation, etc.), fall back to the stub grader for
+  // that one ticker and keep going. Without this, a single 429 mid-loop
+  // kills the entire scan and nothing persists. The fallback is recorded so
+  // the snapshot reasonText surfaces how degraded the grading was.
+  const graderFailures: Array<{ ticker: string; error: string }> = [];
+
   for (let i = 0; i < fetched.length; i++) {
     const sig = fetched[i];
-    const raw = await grader.grade(sig.ticker, sig);
+    let raw: RawFactorInput[];
+    try {
+      raw = await grader.grade(sig.ticker, sig);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      graderFailures.push({ ticker: sig.ticker, error: msg.slice(0, 200) });
+      raw = await stubFactorGrader.grade(sig.ticker, sig);
+    }
     const result = scoreTicker(raw, FRAMEWORK_CONFIG);
     scored.push({ ticker: sig.ticker, result });
     allFactorScores[sig.ticker] = { score: result.composite, factors: result.factorScores };
@@ -180,7 +196,12 @@ export async function runScan(input: ScanInput): Promise<ScanOutput> {
 
   const decision = decideUniverse(scored, FRAMEWORK_CONFIG);
 
-  const tag = skipHistory ? "[SKIP_HISTORY] " : "";
+  const tags: string[] = [];
+  if (skipHistory) tags.push("[SKIP_HISTORY]");
+  if (graderFailures.length > 0) {
+    tags.push(`[STUB_FALLBACK ${graderFailures.length}/${fetched.length}]`);
+  }
+  const tag = tags.length > 0 ? `${tags.join(" ")} ` : "";
   const reasonText =
     decision.pickedTicker === null
       ? `${tag}No ticker passed viability ≥ ${FRAMEWORK_CONFIG.thresholds.viability}. Top: ${decision.topTicker} @ ${decision.topScore}. ${decision.nearMisses.length} near-miss(es).`
@@ -199,6 +220,7 @@ export async function runScan(input: ScanInput): Promise<ScanOutput> {
       viabilityPassed: decision.viabilityPassed,
       nearMisses: decision.nearMisses,
       reasonText,
+      graderFallbacks: graderFailures,
       scanSnapshotId: null,
       pickId: null,
     };
@@ -229,6 +251,7 @@ export async function runScan(input: ScanInput): Promise<ScanOutput> {
     viabilityPassed: decision.viabilityPassed,
     nearMisses: decision.nearMisses,
     reasonText,
+    graderFallbacks: graderFailures,
     scanSnapshotId: persisted.scanSnapshotId,
     pickId: persisted.pickId,
   };

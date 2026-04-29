@@ -110,6 +110,15 @@ async function main(): Promise<void> {
   console.log(`picked            : ${out.pickedTicker ?? "—"}`);
   console.log(`near_misses       : ${out.nearMisses.length}`);
   console.log(`reason            : ${out.reasonText}`);
+  if (out.graderFallbacks.length > 0) {
+    console.log(`grader_fallbacks  : ${out.graderFallbacks.length}/${out.fetchedCount} (stub used after primary failed)`);
+    for (const f of out.graderFallbacks.slice(0, 3)) {
+      console.log(`                  : ${f.ticker} — ${f.error}`);
+    }
+    if (out.graderFallbacks.length > 3) {
+      console.log(`                    …and ${out.graderFallbacks.length - 3} more`);
+    }
+  }
   if (out.scanSnapshotId) console.log(`scan_snapshot_id  : ${out.scanSnapshotId}`);
   if (out.pickId) console.log(`pick_id           : ${out.pickId}`);
   console.log("─".repeat(60));
